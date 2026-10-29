@@ -3,11 +3,11 @@ import json
 import pickle
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import torch # type: ignore
+import torch.nn as nn # type: ignore
+from torch.utils.data import DataLoader, TensorDataset # type: ignore
+from sklearn.preprocessing import StandardScaler # type: ignore
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score # type: ignore
 
 from src.data.split_data import make_grouped_splits
 
@@ -15,7 +15,7 @@ from src.data.split_data import make_grouped_splits
 # ----------------------------
 # Load data
 # ----------------------------
-df = pd.read_csv("data/features/telemetry_features.csv")
+df = pd.read_csv("data/feat/telemetry_features.csv")
 df = df.dropna(subset=["laptime"]).copy()
 
 train_df, val_df, test_df = make_grouped_splits(df, target_col="laptime")
@@ -77,7 +77,6 @@ class F1ANN(nn.Module):
 
     def forward(self, x):
         return self.net(x).squeeze(1)
-
 
 model = F1ANN(X_train_num.shape[1])
 criterion = nn.MSELoss()
@@ -158,6 +157,20 @@ def evaluate(loader):
 
     return mae, rmse, r2
 
+model.eval()
+with torch.no_grad():
+    train_pred = model(X_train_num).numpy()
+    val_pred = model(X_val_num).numpy()
+    test_pred = model(X_test_num).numpy()
+
+train_r2 = r2_score(y_train.numpy(), train_pred)
+val_r2 = r2_score(y_val.numpy(), val_pred)
+test_r2 = r2_score(y_test.numpy(), test_pred)
+
+print("Train R2:", round(train_r2, 4))
+print("Val R2:", round(val_r2, 4))
+print("Test R2:", round(test_r2, 4))
+
 mae, rmse, r2 = evaluate(test_loader)
 
 print("Test MAE:", round(mae, 4))
@@ -177,7 +190,7 @@ torch.save(model.state_dict(), "artifacts/model/ann_best.pt")
 with open("artifacts/scaler/scaler.pkl", "wb") as f:
     pickle.dump(scaler, f)
 
-with open("artifacts/features/feature_columns.json", "w") as f:
+with open("artifacts/feat/feature_columns.json", "w") as f:
     json.dump(num_cols, f)
 
 with open("artifacts/metrics/metrics.json", "w") as f:
